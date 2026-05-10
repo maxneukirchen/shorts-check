@@ -431,8 +431,8 @@ function startWithGPS() {
           reverseGeocode(lat, lon)
         ]);
         render(analyze(weather.hourly), location);
-      } catch {
-        showError('Weather unavailable', 'Your location was found but the weather forecast could not be loaded. Please check your connection and try again.');
+      } catch(e) {
+        showError('Weather unavailable', 'Error: ' + (e && e.message ? e.message : String(e)) + '<br><br>Lat: ' + lat.toFixed(4) + ' Lon: ' + lon.toFixed(4));
       }
     },
     (err) => {
