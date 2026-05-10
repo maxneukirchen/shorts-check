@@ -424,16 +424,30 @@ function startWithGPS() {
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       const { latitude: lat, longitude: lon } = pos.coords;
-      showLoading('Checking today\'s weather…');
+      showLoading('Got location: ' + lat.toFixed(4) + ', ' + lon.toFixed(4) + '<br>Fetching weather…');
+
+      let weather;
       try {
-        const [weather, location] = await Promise.all([
-          fetchWeather(lat, lon),
-          reverseGeocode(lat, lon)
-        ]);
-        render(analyze(weather.hourly), location);
+        weather = await fetchWeather(lat, lon);
       } catch(e) {
-        showError('Weather unavailable', 'Error: ' + (e && e.message ? e.message : String(e)) + '<br><br>Lat: ' + lat.toFixed(4) + ' Lon: ' + lon.toFixed(4));
+        showError('Weather fetch failed',
+          'Could not reach the weather service.<br><br>'
+          + 'Error: ' + (e && e.message ? e.message : String(e))
+          + '<br>Coords: ' + lat.toFixed(4) + ', ' + lon.toFixed(4));
+        return;
       }
+
+      if (!weather || !weather.hourly) {
+        showError('Unexpected response',
+          'Weather data was missing from the response.<br><br>'
+          + JSON.stringify(weather).slice(0, 200));
+        return;
+      }
+
+      let location = lat.toFixed(2) + ', ' + lon.toFixed(2);
+      try { location = await reverseGeocode(lat, lon); } catch(e) { /* non-fatal */ }
+
+      render(analyze(weather.hourly), location);
     },
     (err) => {
       if (err.code === 1) {
