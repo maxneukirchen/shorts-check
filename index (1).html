@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shorts Check">
+<meta name="theme-color" content="#c8dfe8">
+<title>Shorts Check</title>
+
+<!-- Home screen icons (inline SVG rendered to canvas, then set as apple-touch-icon via JS) -->
+<link rel="apple-touch-icon" href="icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;0,9..144,900;1,9..144,300&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg-top: #c2dded;
+  --bg-mid: #ddeaf0;
+  --bg-bot: #f2ebe0;
+  --card:   rgba(255,252,248,0.84);
+  --beige:  #d0aa80;
+  --beige-d:#9a7050;
+  --navy:   #1b2a38;
+  --grey:   #8898a8;
+  --grey-l: #b8c6d0;
+  --green:  #3a7850;
+  --green-bg: #e8f2ec;
+  --green-br: rgba(58,120,80,0.22);
+  --red:    #b04830;
+  --red-bg: #fbeee8;
+  --red-br: rgba(176,72,48,0.22);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { height:-webkit-fill-available; }
+
+body {
+  font-family:'DM Sans',sans-serif;
+  min-height:100vh; min-height:-webkit-fill-available;
+  display:flex; flex-direction:column; align-items:center;
+  overflow-x:hidden;
+}
+
+/* ── Background ─────────────────────────────────── */
+.bg {
+  position:fixed; inset:0; z-index:0;
+  background:linear-gradient(170deg, var(--bg-top) 0%, var(--bg-mid) 30%, var(--bg-bot) 100%);
+}
+.blob {
+  position:absolute; border-radius:50%; filter:blur(70px); opacity:0.4;
+  animation:breathe 8s ease-in-out infinite alternate;
+}
+.blob1 { width:320px; height:320px; top:-60px; right:-60px; background:#f5c870; }
+.blob2 { width:240px; height:240px; bottom:60px; left:-40px; background:#90c8e0; animation-delay:-4s; }
+@keyframes breathe { from{transform:scale(1);} to{transform:scale(1.12);} }
+
+/* clouds */
+.cloud { position:absolute; border-radius:50px; background:rgba(255,255,255,0.5); animation:drift linear infinite; pointer-events:none; }
+.cloud::before,.cloud::after { content:''; position:absolute; border-radius:50%; background:inherit; }
+.cl1 { width:100px; height:32px; top:44px; animation-duration:65s; animation-delay:-12s; opacity:0.5; }
+.cl1::before { width:48px; height:48px; top:-24px; left:10px; }
+.cl1::after  { width:36px; height:36px; top:-18px; left:46px; }
+.cl2 { width:64px; height:22px; top:92px; animation-duration:88s; animation-delay:-44s; opacity:0.35; }
+.cl2::before { width:32px; height:32px; top:-16px; left:8px; }
+.cl3 { width:140px; height:38px; top:16px; animation-duration:105s; animation-delay:-65s; opacity:0.28; }
+.cl3::before { width:60px; height:60px; top:-30px; left:16px; }
+.cl3::after  { width:46px; height:46px; top:-23px; left:68px; }
+@keyframes drift { from{transform:translateX(-280px);} to{transform:translateX(calc(100vw + 280px));} }
+
+/* ── Layout ─────────────────────────────────────── */
+.wrap {
+  position:relative; z-index:10;
+  width:100%; max-width:430px;
+  min-height:100vh; min-height:-webkit-fill-available;
+  display:flex; flex-direction:column; align-items:center;
+  padding: max(env(safe-area-inset-top,20px),20px) 18px max(env(safe-area-inset-bottom,24px),24px);
+  gap:14px;
+}
+
+/* ── Header ─────────────────────────────────────── */
+.header { text-align:center; padding-top:4px; }
+.app-icon { font-size:32px; display:block; margin-bottom:2px; }
+.app-title {
+  font-family:'Fraunces',serif; font-weight:900; font-size:24px;
+  color:var(--navy); letter-spacing:-0.02em;
+}
+.app-sub { font-size:13px; color:var(--beige-d); margin-top:2px; letter-spacing:0.01em; }
+
+/* ── Status card (loading / error) ──────────────── */
+.status-card {
+  width:100%;
+  background:var(--card); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.92); border-radius:24px;
+  box-shadow:0 6px 28px rgba(27,42,56,0.09);
+  padding:42px 24px;
+  display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center;
+  animation:cardIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+}
+.spinner {
+  width:42px; height:42px;
+  border:3px solid rgba(208,170,128,0.3); border-top-color:var(--beige-d);
+  border-radius:50%; animation:spin 0.7s linear infinite;
+}
+@keyframes spin { to{transform:rotate(360deg);} }
+.status-emoji { font-size:38px; }
+.status-title { font-family:'Fraunces',serif; font-weight:700; font-size:19px; color:var(--navy); }
+.status-msg { font-size:13px; color:var(--grey); line-height:1.55; max-width:260px; }
+.retry-btn {
+  margin-top:4px; padding:12px 28px;
+  background:var(--navy); color:#fff; border:none; border-radius:50px;
+  font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+  cursor:pointer; letter-spacing:0.02em;
+  transition:opacity 0.15s,transform 0.1s;
+}
+.retry-btn:active { opacity:0.8; transform:scale(0.97); }
+
+/* ── Result card ─────────────────────────────────── */
+.result-card {
+  width:100%;
+  background:var(--card); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.92); border-radius:24px;
+  box-shadow:0 6px 32px rgba(27,42,56,0.09);
+  padding:26px 20px 22px;
+  display:flex; flex-direction:column; align-items:center;
+  animation:cardIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+@keyframes cardIn {
+  from{opacity:0;transform:translateY(22px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+.verdict-pill {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:6px 15px; border-radius:30px; margin-bottom:18px;
+  font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+}
+.verdict-pill.yes { background:var(--green-bg); color:var(--green); border:1px solid var(--green-br); }
+.verdict-pill.no  { background:var(--red-bg);   color:var(--red);   border:1px solid var(--red-br); }
+.pill-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.verdict-pill.yes .pill-dot { background:var(--green); }
+.verdict-pill.no  .pill-dot { background:var(--red); }
+
+.clothing-wrap {
+  margin-bottom:18px;
+  filter:drop-shadow(0 14px 30px rgba(168,136,100,0.24));
+  animation:clothIn 0.6s 0.1s cubic-bezier(0.22,1,0.36,1) both;
+}
+@keyframes clothIn {
+  from{opacity:0;transform:translateY(10px) scale(0.94);}
+  to{opacity:1;transform:translateY(0) scale(1);}
+}
+.clothing-wrap img { width:168px; height:168px; }
+
+.v-title {
+  font-family:'Fraunces',serif; font-weight:900; font-size:25px;
+  color:var(--navy); text-align:center; line-height:1.15; margin-bottom:5px;
+}
+.v-sub { font-size:13px; color:var(--grey); text-align:center; margin-bottom:20px; }
+
+.divider { width:100%; height:1px; background:linear-gradient(90deg,transparent,rgba(27,42,56,0.07),transparent); margin-bottom:17px; }
+
+/* stats */
+.stats { width:100%; display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:13px; }
+.stat {
+  background:rgba(235,225,210,0.45); border:1px solid rgba(255,255,255,0.82);
+  border-radius:14px; padding:10px 6px; text-align:center;
+}
+.stat-lbl { font-size:9px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--grey); margin-bottom:4px; }
+.stat-val { font-family:'Fraunces',serif; font-weight:700; font-size:20px; color:var(--navy); line-height:1; }
+.stat-unit { font-size:10px; color:var(--grey); margin-top:2px; }
+
+/* hourly */
+.hourly {
+  width:100%; display:flex; gap:3px; margin-bottom:14px;
+  overflow-x:auto; padding-bottom:2px; scrollbar-width:none;
+}
+.hourly::-webkit-scrollbar{display:none;}
+.hc {
+  flex:1; min-width:28px;
+  background:rgba(235,225,210,0.38); border:1px solid rgba(255,255,255,0.75);
+  border-radius:9px; padding:5px 2px; text-align:center;
+}
+.hc.ok { background:rgba(58,120,80,0.1); border-color:rgba(58,120,80,0.28); }
+.hc .hl { font-size:8px; font-weight:600; color:var(--grey); letter-spacing:0.03em; }
+.hc .ht { font-family:'Fraunces',serif; font-size:11px; font-weight:700; color:var(--navy); margin-top:2px; }
+.hc.ok .ht { color:var(--green); }
+
+/* criteria */
+.crit-title { font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--grey); margin-bottom:8px; text-align:center; }
+.crit {
+  width:100%; display:flex; align-items:center; gap:9px;
+  padding:9px 12px; border-radius:12px; margin-bottom:5px;
+  font-size:13px; color:var(--navy);
+  background:rgba(235,225,210,0.35); border:1px solid rgba(255,255,255,0.72);
+}
+.crit-icon { font-size:15px; width:20px; text-align:center; flex-shrink:0; }
+.crit-check { margin-left:auto; font-size:16px; flex-shrink:0; font-weight:700; }
+.pass { color:var(--green); } .fail { color:var(--red); }
+
+.loc-line {
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  font-size:12px; color:var(--grey); margin-top:15px;
+}
+.date-txt { font-size:12px; color:var(--grey-l); margin-top:3px; text-align:center; }
+.refresh-btn {
+  margin-top:12px; background:none; border:none; cursor:pointer;
+  font-size:12px; color:var(--grey); display:flex; align-items:center; gap:4px;
+  padding:4px 8px; border-radius:8px; transition:color 0.2s;
+}
+.refresh-btn:active { color:var(--navy); }
+
+/* hidden SVG store */
+.svg-store { display:none; }
+</style>
+</head>
+<body>
+
+<!-- Hidden SVGs -->
+<div class="svg-store">
+  <svg id="svgShorts" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <defs>
+      <linearGradient id="gs" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#eddcc4"/>
+        <stop offset="100%" style="stop-color:#c09060"/>
+      </linearGradient>
+    </defs>
+    <rect x="36" y="35" width="128" height="21" rx="6" fill="#b08858"/>
+    <rect x="36" y="35" width="128" height="9"  rx="5" fill="#c8a070" opacity="0.55"/>
+    <rect x="53" y="33" width="9"  height="16" rx="3" fill="#987040"/>
+    <rect x="95" y="33" width="9"  height="16" rx="3" fill="#987040"/>
+    <rect x="138" y="33" width="9" height="16" rx="3" fill="#987040"/>
+    <path d="M38 56 L58 144 Q76 158 100 158 Q124 158 142 144 L162 56 Z" fill="url(#gs)"/>
+    <path d="M100 56 Q96 96 93 146 Q96.5 156 100 157 Q103.5 156 107 146 Q104 96 100 56" fill="rgba(0,0,0,0.06)"/>
+    <path d="M53 70 Q50 87 52 106" stroke="rgba(0,0,0,0.1)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M147 70 Q150 87 148 106" stroke="rgba(0,0,0,0.1)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M58 144 Q79 159 100 159" stroke="#b08858" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M142 144 Q121 159 100 159" stroke="#b08858" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M56 58 Q80 53 100 56 Q80 63 56 73 Z" fill="rgba(255,255,255,0.16)"/>
+  </svg>
+
+  <svg id="svgPants" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <defs>
+      <linearGradient id="gp" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#eddcc4"/>
+        <stop offset="100%" style="stop-color:#c09060"/>
+      </linearGradient>
+    </defs>
+    <rect x="36" y="24" width="128" height="21" rx="6" fill="#b08858"/>
+    <rect x="36" y="24" width="128" height="9"  rx="5" fill="#c8a070" opacity="0.55"/>
+    <rect x="53" y="22" width="9"  height="16" rx="3" fill="#987040"/>
+    <rect x="95" y="22" width="9"  height="16" rx="3" fill="#987040"/>
+    <rect x="138" y="22" width="9" height="16" rx="3" fill="#987040"/>
+    <path d="M38 45 L53 185 Q64 192 82 191 L92 45 Z" fill="url(#gp)"/>
+    <path d="M162 45 L147 185 Q136 192 118 191 L108 45 Z" fill="url(#gp)"/>
+    <path d="M92 45 Q97 90 97.5 185 Q98.5 192 100 192 Q101.5 192 102.5 185 Q103 90 108 45 Z" fill="rgba(0,0,0,0.065)"/>
+    <path d="M53 58 Q50 80 52 102" stroke="rgba(0,0,0,0.1)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M147 58 Q150 80 148 102" stroke="rgba(0,0,0,0.1)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M66 62 Q64 116 62 172" stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none" stroke-linecap="round"/>
+    <path d="M134 62 Q136 116 138 172" stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none" stroke-linecap="round"/>
+    <rect x="50" y="181" width="34" height="10" rx="3.5" fill="#b08858"/>
+    <rect x="116" y="181" width="34" height="10" rx="3.5" fill="#b08858"/>
+    <path d="M56 47 Q80 42 100 45 Q80 52 56 62 Z" fill="rgba(255,255,255,0.14)"/>
+  </svg>
+</div>
+
+<div class="bg">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="cloud cl1"></div>
+  <div class="cloud cl2"></div>
+  <div class="cloud cl3"></div>
+</div>
+
+<div class="wrap">
+  <div class="header">
+    <span class="app-icon">🩳</span>
+    <div class="app-title">Shorts Check</div>
+    <div class="app-sub">Can the boys wear shorts today?</div>
+  </div>
+  <div id="dyn" style="width:100%;"></div>
+</div>
+
+<script>
+// ── SVG → data URL ────────────────────────────────────────────────
+function svgURL(id) {
+  const el = document.getElementById(id);
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(el));
+}
+
+// ── UI helpers ────────────────────────────────────────────────────
+const dyn = document.getElementById('dyn');
+
+function showLoading(msg) {
+  dyn.innerHTML = `<div class="status-card">
+    <div class="spinner"></div>
+    <div class="status-title">${msg}</div>
+  </div>`;
+}
+
+function showError(title, msg, showRetry = true) {
+  dyn.innerHTML = `<div class="status-card">
+    <div class="status-emoji">🌧️</div>
+    <div class="status-title">${title}</div>
+    <div class="status-msg">${msg}</div>
+    ${showRetry ? '<button class="retry-btn" onclick="startWithGPS()">Try again</button>' : ''}
+  </div>`;
+}
+
+// ── Weather ───────────────────────────────────────────────────────
+async function fetchWeather(lat, lon) {
+  const today = new Date().toISOString().split('T')[0];
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+    + `&hourly=temperature_2m,precipitation&temperature_unit=celsius`
+    + `&precipitation_unit=mm&forecast_days=1&timezone=auto`
+    + `&start_date=${today}&end_date=${today}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('weather');
+  return r.json();
+}
+
+// ── Reverse geocode ───────────────────────────────────────────────
+async function reverseGeocode(lat, lon) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+    const d = await r.json();
+    const city = d.address?.city || d.address?.town || d.address?.village || d.address?.county || '';
+    const country = d.address?.country || '';
+    return city ? (country ? `${city}, ${country}` : city) : `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  } catch { return `${lat.toFixed(2)}, ${lon.toFixed(2)}`; }
+}
+
+// ── Analysis ──────────────────────────────────────────────────────
+function analyze(hourly) {
+  const win = [];
+  for (let h = 7; h <= 17; h++) {
+    win.push({ h, t: hourly.temperature_2m[h], p: hourly.precipitation[h] });
+  }
+  const minT = Math.min(...win.map(w => w.t));
+  const maxT = Math.max(...win.map(w => w.t));
+  const hrs17 = win.filter(w => w.t >= 17).length;
+  const allAbove12 = win.every(w => w.t >= 12);
+  return { allowed: allAbove12 && hrs17 >= 5, minT, maxT, hrs17, allAbove12, crit17: hrs17 >= 5, win };
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function render(a, locationLabel) {
+  const imgURL = svgURL(a.allowed ? 'svgShorts' : 'svgPants');
+  const today  = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
+
+  const hourCells = a.win.map(w => {
+    const lbl = w.h < 12 ? `${w.h}am` : w.h === 12 ? '12pm' : `${w.h-12}pm`;
+    return `<div class="hc ${w.t >= 12 ? 'ok':''}">
+      <div class="hl">${lbl}</div>
+      <div class="ht">${Math.round(w.t)}°</div>
+    </div>`;
+  }).join('');
+
+  dyn.innerHTML = `<div class="result-card">
+    <div class="verdict-pill ${a.allowed?'yes':'no'}">
+      <span class="pill-dot"></span>
+      ${a.allowed ? 'Shorts day ✓' : 'Long pants day'}
+    </div>
+
+    <div class="clothing-wrap">
+      <img src="${imgURL}" alt="${a.allowed?'Shorts':'Long pants'}"/>
+    </div>
+
+    <div class="v-title">${a.allowed ? 'Shorts allowed today!' : 'Only long pants today'}</div>
+    <div class="v-sub">${a.allowed ? 'Both weather criteria are met 🎉' : 'The weather criteria are not met'}</div>
+
+    <div class="divider"></div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-lbl">Min temp</div>
+        <div class="stat-val">${Math.round(a.minT)}°</div>
+        <div class="stat-unit">7am – 6pm</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Max temp</div>
+        <div class="stat-val">${Math.round(a.maxT)}°</div>
+        <div class="stat-unit">7am – 6pm</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Hrs ≥ 17°</div>
+        <div class="stat-val">${a.hrs17}</div>
+        <div class="stat-unit">need 5+</div>
+      </div>
+    </div>
+
+    <div class="hourly">${hourCells}</div>
+
+    <div class="crit-title">Today's criteria</div>
+    <div class="crit">
+      <span class="crit-icon">🌡️</span>
+      Always ≥ 12°C between 7am – 6pm
+      <span class="crit-check ${a.allAbove12?'pass':'fail'}">${a.allAbove12?'✓':'✗'}</span>
+    </div>
+    <div class="crit">
+      <span class="crit-icon">☀️</span>
+      At least 5 hours ≥ 17°C
+      <span class="crit-check ${a.crit17?'pass':'fail'}">${a.crit17?'✓':'✗'}</span>
+    </div>
+
+    <div class="loc-line">📍 ${locationLabel}</div>
+    <div class="date-txt">${today}</div>
+
+    <button class="refresh-btn" onclick="startWithGPS()">↻ Refresh location</button>
+  </div>`;
+}
+
+// ── GPS flow ──────────────────────────────────────────────────────
+function startWithGPS() {
+  showLoading('Finding your location…');
+
+  if (!navigator.geolocation) {
+    showError('GPS not available', 'Your browser does not support geolocation. Please open this page in Safari on your iPhone or iPad.');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      showLoading('Checking today\'s weather…');
+      try {
+        const [weather, location] = await Promise.all([
+          fetchWeather(lat, lon),
+          reverseGeocode(lat, lon)
+        ]);
+        render(analyze(weather.hourly), location);
+      } catch(e) {
+        showError('Weather unavailable', 'Error: ' + (e && e.message ? e.message : String(e)) + '<br><br>Lat: ' + lat.toFixed(4) + ' Lon: ' + lon.toFixed(4));
+      }
+    },
+    (err) => {
+      if (err.code === 1) {
+        showError(
+          'Location access denied',
+          'Please allow location access:\n\niPhone: Settings → Privacy & Security → Location Services → Safari Websites → While Using the App\n\nThen tap Try again.',
+          true
+        );
+      } else if (err.code === 2) {
+        showError('Location unavailable', 'Your position could not be determined. Make sure you are not in airplane mode and try again.', true);
+      } else {
+        showError('Location timed out', 'It took too long to find your location. Please try again.', true);
+      }
+    },
+    { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 }
+  );
+}
+
+// ── Boot ──────────────────────────────────────────────────────────
+startWithGPS();
+</script>
+</body>
+</html>
