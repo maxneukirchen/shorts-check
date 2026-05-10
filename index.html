@@ -326,13 +326,22 @@ async function fetchWeather(lat, lon) {
   const proxies = [
     directUrl,
     'https://corsproxy.io/?' + encodeURIComponent(directUrl),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl),
+    'https://corsproxy.io/?' + encodeURIComponent(directUrl),
     'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl)
   ];
+
+  function fetchWithTimeout(url, ms) {
+    return new Promise(function(resolve, reject) {
+      var timer = setTimeout(function(){ reject(new Error('Timeout after ' + ms + 'ms')); }, ms);
+      fetch(url).then(function(r){ clearTimeout(timer); resolve(r); }, function(e){ clearTimeout(timer); reject(e); });
+    });
+  }
 
   let lastErr = '';
   for (var i = 0; i < proxies.length; i++) {
     try {
-      var r = await fetch(proxies[i]);
+      var r = await fetchWithTimeout(proxies[i], 8000);
       if (!r.ok) { lastErr = 'HTTP ' + r.status; continue; }
       var data = await r.json();
       if (data && data.hourly) return data;
