@@ -312,7 +312,8 @@ function showError(title, msg, showRetry = true) {
 // ── Weather ───────────────────────────────────────────────────────
 async function fetchWeather(lat, lon) {
   const today = new Date().toISOString().split('T')[0];
-  const url = 'https://api.open-meteo.com/v1/forecast'
+  // Try direct first, then fall back through two CORS proxies
+  const directUrl = 'https://api.open-meteo.com/v1/forecast'
     + '?latitude=' + lat
     + '&longitude=' + lon
     + '&hourly=temperature_2m,precipitation'
@@ -322,14 +323,26 @@ async function fetchWeather(lat, lon) {
     + '&timezone=auto'
     + '&start_date=' + today
     + '&end_date=' + today;
-  let r;
-  try { r = await fetch(url); }
-  catch(netErr) { throw new Error('Network blocked — ' + netErr.message); }
-  if (!r.ok) {
-    const body = await r.text().catch(function(){ return ''; });
-    throw new Error('HTTP ' + r.status + ' — ' + body.slice(0,120));
+
+  const proxies = [
+    directUrl,
+    'https://corsproxy.io/?' + encodeURIComponent(directUrl),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl)
+  ];
+
+  let lastErr = '';
+  for (var i = 0; i < proxies.length; i++) {
+    try {
+      var r = await fetch(proxies[i]);
+      if (!r.ok) { lastErr = 'HTTP ' + r.status; continue; }
+      var data = await r.json();
+      if (data && data.hourly) return data;
+      lastErr = 'Missing hourly data';
+    } catch(e) {
+      lastErr = e.message;
+    }
   }
-  return r.json();
+  throw new Error('All sources failed. Last error: ' + lastErr);
 }
 
 // ── Reverse geocode ───────────────────────────────────────────────
