@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Shorts Check">
 <meta name="theme-color" content="#c2dded">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="apple-touch-icon" href="icon.png">
 <title>Shorts Check</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -697,13 +700,29 @@ function updateUnitUI() {
 updateSubLabel();
 updateUnitUI();
 
-// Fresh restart every time app is launched (handles iOS PWA cache)
-window.addEventListener('pageshow', function(e) {
-  if (e.persisted) {
-    // Page was restored from bfcache - force fresh start
-    startWithGPS();
+// Force hard reload every time app is launched from home screen
+// This ensures no cached version is ever shown
+(function() {
+  // If loaded from cache (bfcache or iOS PWA cache), force network reload
+  if (window.performance && window.performance.navigation) {
+    if (window.performance.navigation.type === 2) {
+      window.location.reload(true);
+      return;
+    }
   }
-});
+  // pageshow covers the bfcache case on iOS
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) {
+      window.location.reload(true);
+    }
+  });
+  // visibilitychange covers app coming back from background
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      startWithGPS();
+    }
+  });
+})();
 
 startWithGPS();
 </script>
