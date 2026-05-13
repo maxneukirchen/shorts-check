@@ -145,6 +145,47 @@ body { font-family:'DM Sans',sans-serif; min-height:100vh; min-height:-webkit-fi
 .save-btn:active { opacity:0.85; transform:scale(0.98); }
 
 .svg-store { display:none; }
+
+/* Tagline */
+.tagline {
+  font-family:'Fraunces',serif; font-weight:700; font-size:15px;
+  color:var(--beige-d); text-align:center; letter-spacing:0.01em;
+  margin-bottom:14px; opacity:0.85;
+}
+
+/* Unit toggle */
+.unit-toggle-wrap {
+  width:100%;
+  background:var(--card); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.92); border-radius:18px;
+  box-shadow:0 4px 18px rgba(27,42,56,0.07);
+  padding:12px 20px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.unit-toggle-left { display:flex; align-items:center; gap:10px; }
+.unit-toggle-icon { font-size:18px; }
+.unit-toggle-label { font-size:14px; font-weight:600; color:var(--navy); }
+.unit-toggle-sub { font-size:11px; color:var(--grey); margin-top:1px; }
+
+.toggle-track {
+  width:52px; height:28px; border-radius:14px;
+  background:rgba(180,160,120,0.3); border:1px solid rgba(180,140,80,0.3);
+  position:relative; cursor:pointer; transition:background 0.25s;
+  flex-shrink:0;
+}
+.toggle-track.on { background:var(--navy); border-color:var(--navy); }
+.toggle-thumb {
+  position:absolute; top:3px; left:3px;
+  width:20px; height:20px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.2);
+  transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toggle-track.on .toggle-thumb { transform:translateX(24px); }
+.toggle-labels {
+  display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600;
+}
+.toggle-lbl { color:var(--grey-l); transition:color 0.2s; }
+.toggle-lbl.active { color:var(--navy); }
 </style>
 </head>
 <body>
@@ -278,6 +319,23 @@ body { font-family:'DM Sans',sans-serif; min-height:100vh; min-height:-webkit-fi
     <div class="app-sub">Can the boys wear shorts today?</div>
   </div>
   <div id="dyn" style="width:100%;"></div>
+  <div class="unit-toggle-wrap">
+    <div class="unit-toggle-left">
+      <span class="unit-toggle-icon">&#x1F321;&#xFE0F;</span>
+      <div>
+        <div class="unit-toggle-label">Temperature unit</div>
+        <div class="unit-toggle-sub" id="unitSubLabel">Celsius (&deg;C)</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="toggle-lbl active" id="lblC">&#x00B0;C</span>
+      <div class="toggle-track" id="unitTrack" onclick="toggleUnit()">
+        <div class="toggle-thumb"></div>
+      </div>
+      <span class="toggle-lbl" id="lblF">&#x00B0;F</span>
+    </div>
+  </div>
+
   <div class="criteria-btn" onclick="openCriteria()">
     <div class="criteria-btn-left">
       <span class="criteria-btn-icon">&#x1F39B;</span>
@@ -303,7 +361,7 @@ body { font-family:'DM Sans',sans-serif; min-height:100vh; min-height:-webkit-fi
 
         <div class="stepper-row">
           <div class="stepper-label">
-            Hours at or above 12&#xB0;C
+            <span id="lbl12deg">Hours at or above 12&#xB0;C</span>
             <span>Minimum hours that must stay warm</span>
           </div>
           <div class="stepper-controls">
@@ -315,7 +373,7 @@ body { font-family:'DM Sans',sans-serif; min-height:100vh; min-height:-webkit-fi
 
         <div class="stepper-row">
           <div class="stepper-label">
-            Hours at or above 17&#xB0;C
+            <span id="lbl17deg">Hours at or above 17&#xB0;C</span>
             <span>Minimum hours that feel genuinely warm</span>
           </div>
           <div class="stepper-controls">
@@ -327,8 +385,8 @@ body { font-family:'DM Sans',sans-serif; min-height:100vh; min-height:-webkit-fi
 
         <div class="stepper-row">
           <div class="stepper-label">
-            Minimum temperature all day
-            <span>The day's lowest must be at least this warm</span>
+            <span id="lblTminDeg">Minimum temperature (7am&#x2013;7pm)</span>
+            <span>The window's lowest must be at least this</span>
           </div>
           <div class="stepper-controls">
             <button class="stepper-btn" id="btnTminminus" onclick="adjust('tmin',-1)">&#x2212;</button>
@@ -366,19 +424,36 @@ function loadCriteria() {
 }
 
 function updateSubLabel() {
-  var c = loadCriteria();
+  var cr = loadCriteria();
   var el = document.getElementById('criteriaSubLabel');
-  if (el) el.textContent = c.h12 + ' hr' + (c.h12 !== 1 ? 's' : '') + ' above 12\u00B0C  +  ' + c.h17 + ' hr' + (c.h17 !== 1 ? 's' : '') + ' above 17\u00B0C';
+  if (!el) return;
+  if (isFahrenheit()) {
+    var t12f  = Math.round(12 * 9/5 + 32);
+    var t17f  = Math.round(17 * 9/5 + 32);
+    var tminf = Math.round(cr.tmin * 9/5 + 32);
+    el.textContent = cr.h12 + 'h ≥' + t12f + '°F  ·  ' + cr.h17 + 'h ≥' + t17f + '°F  ·  min ' + tminf + '°F';
+  } else {
+    el.textContent = cr.h12 + 'h ≥12°C  ·  ' + cr.h17 + 'h ≥17°C  ·  min ' + cr.tmin + '°C';
+  }
 }
 
 function openCriteria() {
-  var c = loadCriteria();
-  tempH12 = c.h12;
-  tempH17 = c.h17;
-  tempTmin = c.tmin;
+  var cr = loadCriteria();
+  tempH12 = cr.h12;
+  tempH17 = cr.h17;
+  tempTmin = cr.tmin;
   document.getElementById('val12').textContent = tempH12;
   document.getElementById('val17').textContent = tempH17;
-  document.getElementById('valTmin').textContent = tempTmin;
+  // Show tmin in current unit
+  document.getElementById('valTmin').textContent = isFahrenheit() ? Math.round(tempTmin * 9/5 + 32) : tempTmin;
+  // Update stepper labels for unit
+  var f = isFahrenheit();
+  var l12 = document.getElementById('lbl12deg');
+  var l17 = document.getElementById('lbl17deg');
+  var ltm = document.getElementById('lblTminDeg');
+  if (l12) l12.textContent = 'Hours at or above ' + (f ? Math.round(12*9/5+32)+'°F' : '12°C');
+  if (l17) l17.textContent = 'Hours at or above ' + (f ? Math.round(17*9/5+32)+'°F' : '17°C');
+  if (ltm) ltm.textContent = 'Minimum temperature (7am–7pm)';
   refreshButtons();
   var ov = document.getElementById('modalOverlay');
   ov.style.display = 'flex';
@@ -406,7 +481,7 @@ function adjust(key, delta) {
     document.getElementById('val17').textContent = tempH17;
   } else {
     tempTmin = Math.max(-10, Math.min(30, tempTmin + delta));
-    document.getElementById('valTmin').textContent = tempTmin;
+    document.getElementById('valTmin').textContent = isFahrenheit() ? Math.round(tempTmin * 9/5 + 32) : tempTmin;
   }
   refreshButtons();
 }
@@ -520,28 +595,29 @@ function render(a, loc) {
     var w = a.win[i];
     var lbl = w.h < 12 ? (w.h + 'am') : (w.h === 12 ? '12pm' : ((w.h - 12) + 'pm'));
     var cls = w.t >= 17 ? 'ok17' : (w.t >= 12 ? 'ok12' : '');
-    cells += '<div class="hc ' + cls + '"><div class="hl">' + lbl + '</div><div class="ht">' + Math.round(w.t) + '</div></div>';
+    cells += '<div class="hc ' + cls + '"><div class="hl">' + lbl + '</div><div class="ht">' + toDisplay(w.t) + '</div></div>';
   }
-  var h12txt = a.c.h12 + ' hr' + (a.c.h12 !== 1 ? 's' : '') + ' \u2265 12\u00B0C';
-  var h17txt = a.c.h17 + ' hr' + (a.c.h17 !== 1 ? 's' : '') + ' \u2265 17\u00B0C';
+  var h12txt = a.c.h12 + ' hr' + (a.c.h12 !== 1 ? 's' : '') + ' + t12disp + u;
+  var h17txt = a.c.h17 + ' hr' + (a.c.h17 !== 1 ? 's' : '') + ' ≥ ' + t17disp + u;
 
   dyn.innerHTML =
     '<div class="result-card">' +
+    '<div class="tagline">' + tagline + '</div>' +
     '<div class="verdict-pill ' + (a.allowed ? 'yes' : 'no') + '"><span class="pill-dot"></span>' + (a.allowed ? 'Shorts day' : 'Long pants day') + '</div>' +
     '<div class="clothing-wrap"><img src="' + imgURL + '" alt="clothing"/></div>' +
     '<div class="v-title">' + (a.allowed ? 'Shorts allowed today!' : 'Only long pants today') + '</div>' +
     '<div class="v-sub">' + (a.allowed ? 'All criteria are met \uD83C\uDF89' : 'One or more criteria are not met') + '</div>' +
     '<div class="divider"></div>' +
     '<div class="stats">' +
-      '<div class="stat"><div class="stat-lbl">Min temp</div><div class="stat-val">' + Math.round(a.dayMin) + '\u00B0</div><div class="stat-unit">7am–7pm</div></div>' +
-      '<div class="stat"><div class="stat-lbl">Max temp</div><div class="stat-val">' + Math.round(a.maxT) + '\u00B0</div><div class="stat-unit">7am\u20137pm</div></div>' +
-      '<div class="stat"><div class="stat-lbl">Hrs \u226517\u00B0</div><div class="stat-val">' + a.hrs17 + '</div><div class="stat-unit">need ' + a.c.h17 + '+</div></div>' +
+      '<div class="stat"><div class="stat-lbl">Min temp</div><div class="stat-val">' + toDisplay(a.minT) + u + '</div><div class="stat-unit">7am–7pm</div></div>' +
+      '<div class="stat"><div class="stat-lbl">Max temp</div><div class="stat-val">' + toDisplay(a.maxT) + u + '</div><div class="stat-unit">7am–7pm</div></div>' +
+      '<div class="stat"><div class="stat-lbl">Hrs ≥' + t17disp + u + '</div><div class="stat-val">' + a.hrs17 + '</div><div class="stat-unit">need ' + a.c.h17 + '+</div></div>' +
     '</div>' +
     '<div class="hourly">' + cells + '</div>' +
     '<div class="crit-title">Today\'s criteria</div>' +
     '<div class="crit"><span class="crit-icon">\uD83C\uDF21\uFE0F</span>' + h12txt + ' (7am\u20137pm)<span class="crit-check ' + (a.crit12 ? 'pass' : 'fail') + '">' + (a.crit12 ? '\u2713' : '\u2717') + '</span></div>' +
     '<div class="crit"><span class="crit-icon">\u2600\uFE0F</span>' + h17txt + ' (7am\u20137pm)<span class="crit-check ' + (a.crit17 ? 'pass' : 'fail') + '">' + (a.crit17 ? '\u2713' : '\u2717') + '</span></div>' +
-    '<div class="crit"><span class="crit-icon">\uD83C\uDF21\uFE0F</span>Minimum temperature between 7am – 7pm: ' + a.c.tmin + '\u00B0C<span class="crit-check ' + (a.critTmin ? 'pass' : 'fail') + '">' + (a.critTmin ? '\u2713' : '\u2717') + '</span></div>' +
+    '<div class="crit"><span class="crit-icon">\uD83C\uDF21\uFE0F</span>Minimum temperature between 7am – 7pm: ' + tminDisp + uass="crit-check ' + (a.critTmin ? 'pass' : 'fail') + '">' + (a.critTmin ? '\u2713' : '\u2717') + '</span></div>' +
     '<div class="loc-line">\uD83D\uDCCD ' + loc + '</div>' +
     '<div class="date-txt">' + today + '</div>' +
     '<button class="refresh-btn" onclick="startWithGPS()">\u21BB Refresh</button>' +
@@ -581,7 +657,47 @@ function startWithGPS() {
   );
 }
 
+// ── Unit (C/F) ────────────────────────────────────────────────────
+function isFahrenheit() {
+  try { return localStorage.getItem('sc_unit') === 'F'; } catch(e) { return false; }
+}
+
+function toggleUnit() {
+  try { localStorage.setItem('sc_unit', isFahrenheit() ? 'C' : 'F'); } catch(e) {}
+  updateUnitUI();
+  startWithGPS();
+}
+
+function toDisplay(celsius) {
+  return isFahrenheit() ? Math.round(celsius * 9/5 + 32) : Math.round(celsius);
+}
+
+function unitSuffix() { return isFahrenheit() ? '°F' : '°C'; }
+
+function updateUnitUI() {
+  var f = isFahrenheit();
+  var track = document.getElementById('unitTrack');
+  var lblC  = document.getElementById('lblC');
+  var lblF  = document.getElementById('lblF');
+  var sub   = document.getElementById('unitSubLabel');
+  if (track) { if (f) track.classList.add('on'); else track.classList.remove('on'); }
+  if (lblC)  { if (f) lblC.classList.remove('active'); else lblC.classList.add('active'); }
+  if (lblF)  { if (f) lblF.classList.add('active');    else lblF.classList.remove('active'); }
+  if (sub)   sub.textContent = f ? 'Fahrenheit (°F)' : 'Celsius (°C)';
+  updateSubLabel();
+}
+
 updateSubLabel();
+updateUnitUI();
+
+// Fresh restart every time app is launched (handles iOS PWA cache)
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) {
+    // Page was restored from bfcache - force fresh start
+    startWithGPS();
+  }
+});
+
 startWithGPS();
 </script>
 </body>
