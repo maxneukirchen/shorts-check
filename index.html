@@ -589,7 +589,14 @@ function analyze(hourly, c) {
 
 function render(a, loc) {
   var imgURL = svgURL(a.allowed ? 'svgShorts' : 'svgPants');
-  var today = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
+  var now    = new Date();
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var tagline = 'Welcome! Today is ' + months[now.getMonth()] + ' ' + now.getDate() + '.';
+  var today  = now.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
+  var u      = unitSuffix();
+  var t12disp  = isFahrenheit() ? Math.round(12*9/5+32) : 12;
+  var t17disp  = isFahrenheit() ? Math.round(17*9/5+32) : 17;
+  var tminDisp = isFahrenheit() ? Math.round(a.c.tmin*9/5+32) : a.c.tmin;
   var cells = '';
   for (var i = 0; i < a.win.length; i++) {
     var w = a.win[i];
@@ -597,7 +604,7 @@ function render(a, loc) {
     var cls = w.t >= 17 ? 'ok17' : (w.t >= 12 ? 'ok12' : '');
     cells += '<div class="hc ' + cls + '"><div class="hl">' + lbl + '</div><div class="ht">' + toDisplay(w.t) + '</div></div>';
   }
-  var h12txt = a.c.h12 + ' hr' + (a.c.h12 !== 1 ? 's' : '') + ' + t12disp + u;
+  var h12txt = a.c.h12 + ' hr' + (a.c.h12 !== 1 ? 's' : '') + ' ≥ ' + t12disp + u;
   var h17txt = a.c.h17 + ' hr' + (a.c.h17 !== 1 ? 's' : '') + ' ≥ ' + t17disp + u;
 
   dyn.innerHTML =
@@ -617,7 +624,7 @@ function render(a, loc) {
     '<div class="crit-title">Today\'s criteria</div>' +
     '<div class="crit"><span class="crit-icon">\uD83C\uDF21\uFE0F</span>' + h12txt + ' (7am\u20137pm)<span class="crit-check ' + (a.crit12 ? 'pass' : 'fail') + '">' + (a.crit12 ? '\u2713' : '\u2717') + '</span></div>' +
     '<div class="crit"><span class="crit-icon">\u2600\uFE0F</span>' + h17txt + ' (7am\u20137pm)<span class="crit-check ' + (a.crit17 ? 'pass' : 'fail') + '">' + (a.crit17 ? '\u2713' : '\u2717') + '</span></div>' +
-    '<div class="crit"><span class="crit-icon">\uD83C\uDF21\uFE0F</span>Minimum temperature between 7am – 7pm: ' + tminDisp + uass="crit-check ' + (a.critTmin ? 'pass' : 'fail') + '">' + (a.critTmin ? '\u2713' : '\u2717') + '</span></div>' +
+    '<div class="crit"><span class="crit-icon">\uD83C\uDF21\uFE0F</span>Minimum temperature between 7am \u2013 7pm: ' + tminDisp + u + '<span class="crit-check ' + (a.critTmin ? 'pass' : 'fail') + '">' + (a.critTmin ? '\u2713' : '\u2717') + '</span></div>' +
     '<div class="loc-line">\uD83D\uDCCD ' + loc + '</div>' +
     '<div class="date-txt">' + today + '</div>' +
     '<button class="refresh-btn" onclick="startWithGPS()">\u21BB Refresh</button>' +
